@@ -1,12 +1,82 @@
 const webpack = require("webpack");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
-// const TerserPlugin = require("terser-webpack-plugin");
+const TerserPlugin = require("terser-webpack-plugin");
+const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+const safePostCssParser = require("postcss-safe-parser");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
 const paths = require("./paths");
 
 const isEnvDevelopment = process.env.NODE_ENV === "development";
 const isEnvProduction = process.env.NODE_ENV === "production";
+
+// Only affect production build
+const shouldUseSourceMap = isEnvDevelopment || process.env.SOURCE_MAP === true;
+
+// Webpack uses `publicPath` to determine where the app is being served from.
+// It requires a trailing slash, or the file assets will get an incorrect path.
+// In development, we always serve from the root. This makes config easier.
+const publicPath = paths.servedPath;
+// Some apps do not use client-side routing with pushState.
+// For these, "homepage" can be set to "." to enable relative asset paths.
+const shouldUseRelativeAssetPaths = publicPath === "./";
+
+// Detect window subsystem linux
+const isWsl = process.env.IS_WSL === true;
+
+// style files regexes
+const cssRegex = /\.css$/;
+const cssModuleRegex = /\.module\.css$/;
+const sassRegex = /\.(scss|sass)$/;
+const sassModuleRegex = /\.module\.(scss|sass)$/;
+
+// common function to get style loaders
+const getStyleLoaders = (cssOptions, preProcessor) => {
+  const loaders = [
+    {
+      loader: MiniCssExtractPlugin.loader,
+      options: Object.assign(
+        {},
+        shouldUseRelativeAssetPaths ? { publicPath: "../../" } : undefined
+      ),
+    },
+    {
+      loader: require.resolve("css-loader"),
+      options: cssOptions,
+    },
+    {
+      // Options for PostCSS as we reference these options twice
+      // Adds vendor prefixing based on your specified browser support in
+      // package.json
+      loader: require.resolve("postcss-loader"),
+      options: {
+        // Necessary for external CSS imports to work
+        // https://github.com/facebook/create-react-app/issues/2677
+        ident: "postcss",
+        plugins: () => [
+          require("postcss-flexbugs-fixes"),
+          require("postcss-preset-env")({
+            autoprefixer: {
+              flexbox: "no-2009",
+            },
+            stage: 3,
+          }),
+        ],
+        sourceMap: shouldUseSourceMap,
+      },
+    },
+  ].filter(Boolean);
+  if (preProcessor) {
+    loaders.push({
+      loader: require.resolve(preProcessor),
+      options: {
+        sourceMap: shouldUseSourceMap,
+      },
+    });
+  }
+  return loaders;
+};
 
 module.exports = {
   mode: isEnvProduction ? "production" : "development",
@@ -16,6 +86,7 @@ module.exports = {
   entry: paths.appEntry,
   output: {
     filename: "module.js",
+    // chunkFilename: "static/js/[name].[contenthash:8].chunk.js",
     path: paths.appDist,
     libraryTarget: "amd",
   },
@@ -38,6 +109,12 @@ module.exports = {
     new CopyWebpackPlugin([
       { from: paths.appJson, to: "." },
     ]),
+    new MiniCssExtractPlugin({
+      // Options similar to the same options in webpackOptions.output
+      // both options are optional
+      filename: "static/css/[name].[contenthash:8].css",
+      // chunkFilename: "static/css/[name].[contenthash:8].chunk.css",
+    }),
     new ForkTsCheckerWebpackPlugin({
       async: isEnvDevelopment,
       useTypescriptIncrementalApi: true,
@@ -62,72 +139,72 @@ module.exports = {
       // formatter: typescriptFormatter,
     }),
   ],
-  // optimization: {
-  //   minimize: isEnvProduction,
-  //   minimizer: [
-  //     // This is only used in production mode
-  //     new TerserPlugin({
-  //       terserOptions: {
-  //         parse: {
-  //           // we want terser to parse ecma 8 code. However, we don't want it
-  //           // to apply any minfication steps that turns valid ecma 5 code
-  //           // into invalid ecma 5 code. This is why the 'compress' and 'output'
-  //           // sections only apply transformations that are ecma 5 safe
-  //           // https://github.com/facebook/create-react-app/pull/4234
-  //           ecma: 8,
-  //         },
-  //         compress: {
-  //           ecma: 5,
-  //           warnings: false,
-  //           // Disabled because of an issue with Uglify breaking seemingly valid code:
-  //           // https://github.com/facebook/create-react-app/issues/2376
-  //           // Pending further investigation:
-  //           // https://github.com/mishoo/UglifyJS2/issues/2011
-  //           comparisons: false,
-  //           // Disabled because of an issue with Terser breaking valid code:
-  //           // https://github.com/facebook/create-react-app/issues/5250
-  //           // Pending futher investigation:
-  //           // https://github.com/terser-js/terser/issues/120
-  //           inline: 2,
-  //         },
-  //         mangle: {
-  //           safari10: true,
-  //         },
-  //         output: {
-  //           ecma: 5,
-  //           comments: false,
-  //           // Turned on because emoji and regex is not minified properly using default
-  //           // https://github.com/facebook/create-react-app/issues/2488
-  //           ascii_only: true,
-  //         },
-  //       },
-  //       // Use multi-process parallel running to improve the build speed
-  //       // Default number of concurrent runs: os.cpus().length - 1
-  //       // Disabled on WSL (Windows Subsystem for Linux) due to an issue with Terser
-  //       // https://github.com/webpack-contrib/terser-webpack-plugin/issues/21
-  //       parallel: !isWsl,
-  //       // Enable file caching
-  //       cache: true,
-  //       sourceMap: shouldUseSourceMap,
-  //     }),
-  //     // This is only used in production mode
-  //     new OptimizeCSSAssetsPlugin({
-  //       cssProcessorOptions: {
-  //         parser: safePostCssParser,
-  //         map: shouldUseSourceMap
-  //           ? {
-  //             // `inline: false` forces the sourcemap to be output into a
-  //             // separate file
-  //             inline: false,
-  //             // `annotation: true` appends the sourceMappingURL to the end of
-  //             // the css file, helping the browser find the sourcemap
-  //             annotation: true,
-  //           }
-  //           : false,
-  //       },
-  //     }),
-  //   ],
-  // },
+  optimization: {
+    minimize: isEnvProduction,
+    minimizer: [
+      // This is only used in production mode
+      new TerserPlugin({
+        terserOptions: {
+          parse: {
+            // we want terser to parse ecma 8 code. However, we don't want it
+            // to apply any minfication steps that turns valid ecma 5 code
+            // into invalid ecma 5 code. This is why the 'compress' and 'output'
+            // sections only apply transformations that are ecma 5 safe
+            // https://github.com/facebook/create-react-app/pull/4234
+            ecma: 8,
+          },
+          compress: {
+            ecma: 5,
+            warnings: false,
+            // Disabled because of an issue with Uglify breaking seemingly valid code:
+            // https://github.com/facebook/create-react-app/issues/2376
+            // Pending further investigation:
+            // https://github.com/mishoo/UglifyJS2/issues/2011
+            comparisons: false,
+            // Disabled because of an issue with Terser breaking valid code:
+            // https://github.com/facebook/create-react-app/issues/5250
+            // Pending futher investigation:
+            // https://github.com/terser-js/terser/issues/120
+            inline: 2,
+          },
+          mangle: {
+            safari10: true,
+          },
+          output: {
+            ecma: 5,
+            comments: false,
+            // Turned on because emoji and regex is not minified properly using default
+            // https://github.com/facebook/create-react-app/issues/2488
+            ascii_only: true,
+          },
+        },
+        // Use multi-process parallel running to improve the build speed
+        // Default number of concurrent runs: os.cpus().length - 1
+        // Disabled on WSL (Windows Subsystem for Linux) due to an issue with Terser
+        // https://github.com/webpack-contrib/terser-webpack-plugin/issues/21
+        parallel: !isWsl,
+        // Enable file caching
+        cache: true,
+        sourceMap: shouldUseSourceMap,
+      }),
+      // This is only used in production mode
+      new OptimizeCSSAssetsPlugin({
+        cssProcessorOptions: {
+          parser: safePostCssParser,
+          map: shouldUseSourceMap
+            ? {
+              // `inline: false` forces the sourcemap to be output into a
+              // separate file
+              inline: false,
+              // `annotation: true` appends the sourceMappingURL to the end of
+              // the css file, helping the browser find the sourcemap
+              annotation: true,
+            }
+            : false,
+        },
+      }),
+    ],
+  },
   resolve: {
     // alias: {
     //   "src": resolve("src"),
@@ -161,6 +238,17 @@ module.exports = {
         // match the requirements. When no loader matches it will fall
         // back to the "file" loader at the end of the loader list.
         oneOf: [
+          // "url" loader works like "file" loader except that it embeds assets
+          // smaller than specified limit in bytes as data URLs to avoid requests.
+          // A missing `test` is equivalent to a match.
+          {
+            test: [/\.bmp$/, /\.gif$/, /\.jpe?g$/, /\.png$/],
+            loader: require.resolve("url-loader"),
+            options: {
+              limit: 10000,
+              name: "static/media/[name].[hash:8].[ext]",
+            },
+          },
           {
             test: /\.(js|mjs|jsx|ts|tsx)$/,
             include: paths.appSrc,
@@ -196,6 +284,70 @@ module.exports = {
               cacheCompression: isEnvProduction,
               compact: isEnvProduction,
             },
+          },
+          // "postcss" loader applies autoprefixer to our CSS.
+          // "css" loader resolves paths in CSS and adds assets as dependencies.
+          // "style" loader turns CSS into JS modules that inject <style> tags.
+          // In production, we use MiniCSSExtractPlugin to extract that CSS
+          // to a file, but in development "style" loader enables hot editing
+          // of CSS.
+          // By default we support CSS Modules with the extension .module.css
+          {
+            test: cssRegex,
+            exclude: cssModuleRegex,
+            use: getStyleLoaders({
+              importLoaders: 1,
+              sourceMap: shouldUseSourceMap,
+            }),
+            // Don't consider CSS imports dead code even if the
+            // containing package claims to have no side effects.
+            // Remove this when webpack adds a warning or an error for this.
+            // See https://github.com/webpack/webpack/issues/6571
+            sideEffects: true,
+          },
+          // Adds support for CSS Modules (https://github.com/css-modules/css-modules)
+          // using the extension .module.css
+          {
+            test: cssModuleRegex,
+            use: getStyleLoaders({
+              importLoaders: 1,
+              sourceMap: shouldUseSourceMap,
+              modules: true,
+              localIdentName: "[path][name]-[local]-[hash:base64:17]",
+            }),
+          },
+          // Opt-in support for SASS (using .scss or .sass extensions).
+          // By default we support SASS Modules with the
+          // extensions .module.scss or .module.sass
+          {
+            test: sassRegex,
+            exclude: sassModuleRegex,
+            use: getStyleLoaders(
+              {
+                importLoaders: 2,
+                sourceMap: shouldUseSourceMap,
+              },
+              "sass-loader"
+            ),
+            // Don't consider CSS imports dead code even if the
+            // containing package claims to have no side effects.
+            // Remove this when webpack adds a warning or an error for this.
+            // See https://github.com/webpack/webpack/issues/6571
+            sideEffects: true,
+          },
+          // Adds support for CSS Modules, but using SASS
+          // using the extension .module.scss or .module.sass
+          {
+            test: sassModuleRegex,
+            use: getStyleLoaders(
+              {
+                importLoaders: 2,
+                sourceMap: shouldUseSourceMap,
+                modules: true,
+                localIdentName: "[path][name]-[local]-[hash:base64:17]",
+              },
+              "sass-loader"
+            ),
           },
           // "file" loader makes sure those assets get served by WebpackDevServer.
           // When you `import` an asset, you get its (virtual) filename.

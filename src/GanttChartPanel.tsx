@@ -3,6 +3,7 @@ import {
   PanelProps,
   ThemeContext,
 } from "@grafana/ui";
+import "./GanttChartPanel.css";
 
 interface Props extends PanelProps<{}> { }
 
@@ -13,25 +14,25 @@ export class GanttChartPanel extends PureComponent<Props> {
   }
 
   render() {
-    const {
-      options,
-      timeRange,
-      width,
-      height,
-    } = this.props;
+    // const {
+    //   options,
+    //   timeRange,
+    //   width,
+    //   height,
+    // } = this.props;
 
     useState(0);
 
     return (
       <ThemeContext.Consumer>
         {theme => {
-          console.log("ToanVQ: ComboPanel -> render -> theme",
-            theme,
-            options,
-            timeRange,
-            width,
-            height
-          );
+          // console.log("ToanVQ: ComboPanel -> render -> theme",
+          //   theme,
+          //   options,
+          //   timeRange,
+          //   width,
+          //   height
+          // );
           return (
             <div>Hello Granfana Panel</div>
           );

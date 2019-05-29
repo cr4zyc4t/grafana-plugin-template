@@ -1,6 +1,6 @@
 import { PanelPlugin } from "@grafana/ui";
 import { GanttChartPanel } from "./GanttChartPanel";
-import { GanttChartPanelEditor } from "./GanttChartPanelEditor";
+import { GanttChartPanelEditor } from "./components/GanttChartPanelEditor";
 
 export const plugin = new PanelPlugin(GanttChartPanel);
 

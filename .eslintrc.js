@@ -6,6 +6,6 @@ module.exports = {
     "@cr4zyc4t/common",
   ],
   rules: {
-    "no-console": isProduction ? "warn" : "off"
+    // "no-console": isProduction ? "warn" : "off"
   }
 }

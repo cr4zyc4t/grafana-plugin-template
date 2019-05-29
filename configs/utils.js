@@ -45,7 +45,7 @@ const webpackOutputFormatter = function (err, stats) {
     return;
   }
 
-  clearConsole();
+  // clearConsole();
   console.log(chalk.green("Compile success!"));
   console.log(stats.toString({
     assets: true,
