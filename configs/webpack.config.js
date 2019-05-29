@@ -1,5 +1,4 @@
 const webpack = require("webpack");
-const CleanWebpackPlugin = require("clean-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
 // const TerserPlugin = require("terser-webpack-plugin");
@@ -36,7 +35,6 @@ module.exports = {
       NODE_ENV: isEnvProduction ? "production" : "development",
     }),
     new webpack.optimize.OccurrenceOrderPlugin(),
-    new CleanWebpackPlugin(),
     new CopyWebpackPlugin([
       { from: paths.appJson, to: "." },
     ]),
