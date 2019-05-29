@@ -10,6 +10,7 @@ const isEnvDevelopment = process.env.NODE_ENV === "development";
 const isEnvProduction = process.env.NODE_ENV === "production";
 
 module.exports = {
+  mode: isEnvProduction ? "production" : "development",
   // Stop compilation early in production
   bail: isEnvProduction,
   context: paths.appSrc,
@@ -134,21 +135,6 @@ module.exports = {
     //   "src": resolve("src"),
     // },
     extensions: [".tsx", ".ts", ".jsx", ".js", ".mjs"],
-  },
-  stats: {
-    assets: true,
-    cached: false,
-    children: false,
-    chunks: false,
-    chunkModules: false,
-    colors: true,
-    hash: true,
-    modules: false,
-    reasons: false,
-    source: false,
-    timings: true,
-    version: false,
-    entrypoints: false,
   },
   module: {
     strictExportPresence: true,

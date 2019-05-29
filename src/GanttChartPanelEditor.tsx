@@ -30,7 +30,6 @@ export class GanttChartPanelEditor extends PureComponent<PanelEditorProps<{}>> {
   render() {
     const { options } = this.props;
     console.log("ToanVQ: ComboPanelEditor -> render -> options", options);
-    const a = 3;
 
     return (
       <>

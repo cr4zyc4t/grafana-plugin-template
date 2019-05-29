@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "webpack --config configs/webpack.config.dev.js --mode development",
-    "build": "webpack --config configs/webpack.config.prod.js --mode production"
+    "start": "node scripts/start",
+    "build": "node scripts/build"
   },
   "repository": {
     "type": "git",
@@ -34,6 +34,7 @@
     "babel-loader": "8.0.6",
     "babel-plugin-named-asset-import": "0.3.2",
     "babel-preset-react-app": "9.0.0",
+    "chalk": "2.4.2",
     "clean-webpack-plugin": "2.0.2",
     "copy-webpack-plugin": "5.0.3",
     "css-loader": "2.1.1",
