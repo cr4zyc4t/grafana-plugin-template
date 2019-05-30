@@ -13,7 +13,7 @@ function ensureSlash(inputPath, needsSlash) {
 }
 
 const envPublicUrl = process.env.PUBLIC_URL;
-const getPublicUrl = appPackageJson => envPublicUrl || require(appPackageJson).homepage;
+const getPublicUrl = appJson => envPublicUrl || `public/plugins/${require(appJson).id}`;
 
 // We use `PUBLIC_URL` environment variable or "homepage" field to infer
 // "public path" at which the app is served.
@@ -21,8 +21,8 @@ const getPublicUrl = appPackageJson => envPublicUrl || require(appPackageJson).h
 // single-page apps that may serve index.html for nested URLs like /todos/42.
 // We can't use a relative path in HTML because we don't want to load something
 // like /todos/42/static/js/bundle.7289d.js. We have to know the root.
-function getServedPath(appPackageJson) {
-  const publicUrl = getPublicUrl(appPackageJson);
+function getServedPath(appJson) {
+  const publicUrl = getPublicUrl(appJson);
   const servedUrl =
     envPublicUrl || (publicUrl ? url.parse(publicUrl).pathname : "/");
   return ensureSlash(servedUrl, true);
@@ -39,7 +39,9 @@ module.exports = {
   appSrc: resolveApp("src"),
   appJson: resolveApp("src/plugin.json"),
   appTsConfig: resolveApp("tsconfig.json"),
+  appJsConfig: resolveApp("jsconfig.json"),
+  appNodeModules: resolveApp("node_modules"),
   appEntry: resolveApp("src/module"),
   publicUrl: getPublicUrl(resolveApp("package.json")),
-  servedPath: getServedPath(resolveApp("package.json")),
+  servedPath: getServedPath(resolveApp("src/plugin.json")),
 };

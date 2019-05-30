@@ -1,3 +1,4 @@
+const fs = require("fs");
 const webpack = require("webpack");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
@@ -7,12 +8,18 @@ const safePostCssParser = require("postcss-safe-parser");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
 const paths = require("./paths");
+const modules = require("./modules");
 
 const isEnvDevelopment = process.env.NODE_ENV === "development";
 const isEnvProduction = process.env.NODE_ENV === "production";
 
+const extractCSS = process.env.GENERATE_CSS === true || process.env.GENERATE_CSS === "true";
+
+// Check if TypeScript is setup
+const useTypeScript = fs.existsSync(paths.appTsConfig);
+
 // Only affect production build
-const shouldUseSourceMap = isEnvDevelopment || process.env.SOURCE_MAP === true;
+const shouldUseSourceMap = isEnvDevelopment || process.env.SOURCE_MAP === true || process.env.SOURCE_MAP === "true";
 
 // Webpack uses `publicPath` to determine where the app is being served from.
 // It requires a trailing slash, or the file assets will get an incorrect path.
@@ -26,6 +33,7 @@ const shouldUseRelativeAssetPaths = publicPath === "./";
 const isWsl = process.env.IS_WSL === true;
 
 // style files regexes
+const jsRegex = (useTypeScript && /\.(js|mjs|jsx|ts|tsx)$/) || /\.(js|mjs|jsx)$/;
 const cssRegex = /\.css$/;
 const cssModuleRegex = /\.module\.css$/;
 const sassRegex = /\.(scss|sass)$/;
@@ -34,6 +42,7 @@ const sassModuleRegex = /\.module\.(scss|sass)$/;
 // common function to get style loaders
 const getStyleLoaders = (cssOptions, preProcessor) => {
   const loaders = [
+    extractCSS &&
     {
       loader: MiniCssExtractPlugin.loader,
       options: Object.assign(
@@ -41,9 +50,19 @@ const getStyleLoaders = (cssOptions, preProcessor) => {
         shouldUseRelativeAssetPaths ? { publicPath: "../../" } : undefined
       ),
     },
+    !extractCSS &&
+    {
+      loader: require.resolve("style-loader"),
+      options: {
+        sourceMap: shouldUseSourceMap,
+      },
+    },
     {
       loader: require.resolve("css-loader"),
-      options: cssOptions,
+      options: {
+        ...cssOptions,
+        sourceMap: shouldUseSourceMap,
+      },
     },
     {
       // Options for PostCSS as we reference these options twice
@@ -80,6 +99,7 @@ const getStyleLoaders = (cssOptions, preProcessor) => {
 
 module.exports = {
   mode: isEnvProduction ? "production" : "development",
+  devtool: shouldUseSourceMap ? "source-map" : false,
   // Stop compilation early in production
   bail: isEnvProduction,
   context: paths.appSrc,
@@ -88,6 +108,7 @@ module.exports = {
     filename: "module.js",
     // chunkFilename: "static/js/[name].[contenthash:8].chunk.js",
     path: paths.appDist,
+    publicPath,
     libraryTarget: "amd",
   },
   externals: [
@@ -109,13 +130,13 @@ module.exports = {
     new CopyWebpackPlugin([
       { from: paths.appJson, to: "." },
     ]),
-    new MiniCssExtractPlugin({
+    extractCSS && new MiniCssExtractPlugin({
       // Options similar to the same options in webpackOptions.output
       // both options are optional
       filename: "static/css/[name].[contenthash:8].css",
       // chunkFilename: "static/css/[name].[contenthash:8].chunk.css",
     }),
-    new ForkTsCheckerWebpackPlugin({
+    useTypeScript && new ForkTsCheckerWebpackPlugin({
       async: isEnvDevelopment,
       useTypescriptIncrementalApi: true,
       checkSyntacticErrors: true,
@@ -138,7 +159,7 @@ module.exports = {
       // // The formatter is invoked directly in WebpackDevServerUtils during development
       // formatter: typescriptFormatter,
     }),
-  ],
+  ].filter(Boolean),
   optimization: {
     minimize: isEnvProduction,
     minimizer: [
@@ -206,10 +227,16 @@ module.exports = {
     ],
   },
   resolve: {
-    // alias: {
-    //   "src": resolve("src"),
-    // },
-    extensions: [".tsx", ".ts", ".jsx", ".js", ".mjs"],
+    // This allows you to set a fallback for where Webpack should look for modules.
+    // We placed these paths second because we want `node_modules` to "win"
+    // if there are any conflicts. This matches Node resolution mechanism.
+    // https://github.com/facebook/create-react-app/issues/253
+    modules: ["node_modules", paths.appNodeModules].concat(
+      modules.additionalModulePaths || []
+    ),
+    extensions: [".jsx", ".js", ".mjs"].concat(
+      useTypeScript ? [".tsx", ".ts"] : []
+    ),
   },
   module: {
     strictExportPresence: true,
@@ -220,7 +247,7 @@ module.exports = {
       // First, run the linter.
       // It's important to do this before Babel processes the JS.
       {
-        test: /\.(js|mjs|jsx|ts|tsx)$/,
+        test: jsRegex,
         enforce: "pre",
         use: [
           {
@@ -250,7 +277,8 @@ module.exports = {
             },
           },
           {
-            test: /\.(js|mjs|jsx|ts|tsx)$/,
+            test: jsRegex,
+            exclude: /(node_modules)/,
             include: paths.appSrc,
             loader: require.resolve("babel-loader"),
             options: {
@@ -276,6 +304,7 @@ module.exports = {
                     },
                   },
                 ],
+                require.resolve("babel-plugin-macros"),
               ],
               // This is a feature of `babel-loader` for webpack (not Babel itself).
               // It enables caching results in ./node_modules/.cache/babel-loader/
@@ -297,7 +326,6 @@ module.exports = {
             exclude: cssModuleRegex,
             use: getStyleLoaders({
               importLoaders: 1,
-              sourceMap: shouldUseSourceMap,
             }),
             // Don't consider CSS imports dead code even if the
             // containing package claims to have no side effects.
@@ -311,7 +339,6 @@ module.exports = {
             test: cssModuleRegex,
             use: getStyleLoaders({
               importLoaders: 1,
-              sourceMap: shouldUseSourceMap,
               modules: true,
               localIdentName: "[path][name]-[local]-[hash:base64:17]",
             }),
@@ -325,7 +352,6 @@ module.exports = {
             use: getStyleLoaders(
               {
                 importLoaders: 2,
-                sourceMap: shouldUseSourceMap,
               },
               "sass-loader"
             ),
@@ -342,7 +368,6 @@ module.exports = {
             use: getStyleLoaders(
               {
                 importLoaders: 2,
-                sourceMap: shouldUseSourceMap,
                 modules: true,
                 localIdentName: "[path][name]-[local]-[hash:base64:17]",
               },
@@ -360,7 +385,7 @@ module.exports = {
             // its runtime that would otherwise be processed through "file" loader.
             // Also exclude `html` and `json` extensions so they get processed
             // by webpacks internal loaders.
-            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
+            exclude: [jsRegex, /\.html$/, /\.json$/],
             options: {
               name: "static/media/[name].[hash:8].[ext]",
             },

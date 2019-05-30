@@ -3,8 +3,8 @@ import {
   PanelEditorProps,
   PanelOptionsGrid,
 } from "@grafana/ui";
-import s from "./GanttChartPanelEditor.module.css";
 import "./GanttChartPanelEditor.css";
+import s from "./GanttChartPanelEditor.module.css";
 
 export class GanttChartPanelEditor extends PureComponent<PanelEditorProps<{}>> {
   // onLayoutChange = layout =>

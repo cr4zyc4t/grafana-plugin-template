@@ -1,9 +1,16 @@
-import React, { PureComponent, useState } from "react";
+import React, { PureComponent } from "react";
 import {
   PanelProps,
   ThemeContext,
 } from "@grafana/ui";
+import styled from "styled-components/macro";
 import "./GanttChartPanel.css";
+import testImg from "assets/img/test.jpg";
+
+const MyHello = styled.div`
+  background-color: green;
+  color: red;
+`;
 
 interface Props extends PanelProps<{}> { }
 
@@ -21,8 +28,6 @@ export class GanttChartPanel extends PureComponent<Props> {
     //   height,
     // } = this.props;
 
-    useState(0);
-
     return (
       <ThemeContext.Consumer>
         {theme => {
@@ -34,7 +39,10 @@ export class GanttChartPanel extends PureComponent<Props> {
           //   height
           // );
           return (
-            <div>Hello Granfana Panel</div>
+            <div>
+              <MyHello className="gantt-chart-hello">Hello Granfana Panel</MyHello>
+              <img src={testImg} alt="testimage"/>
+            </div>
           );
         }}
       </ThemeContext.Consumer>
